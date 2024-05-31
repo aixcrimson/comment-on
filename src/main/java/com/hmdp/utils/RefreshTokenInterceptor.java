@@ -11,8 +11,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.hmdp.utils.RedisConstants.CACHE_SHOP_TTL;
-import static com.hmdp.utils.RedisConstants.LOGIN_USER_KEY;
+import static com.hmdp.utils.RedisConstants.*;
 
 public class RefreshTokenInterceptor implements HandlerInterceptor {
     private StringRedisTemplate stringRedisTemplate;
@@ -60,7 +59,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
         // 5.存在，保存用户信息到ThreadLocal
         UserHolder.saveUser(userDTO);
         // 6.刷新token有效期
-        stringRedisTemplate.expire(tokenKey, CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.MINUTES);
         // 7.放行
         return true;
     }
