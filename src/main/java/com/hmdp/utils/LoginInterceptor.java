@@ -18,56 +18,15 @@ import static com.hmdp.utils.RedisConstants.LOGIN_USER_KEY;
 
 public class LoginInterceptor implements HandlerInterceptor {
 
-    private StringRedisTemplate stringRedisTemplate;
-
-    public LoginInterceptor(StringRedisTemplate stringRedisTemplate) {
-        this.stringRedisTemplate = stringRedisTemplate;
-    }
-
-    /*@Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 1.获取session
-        HttpSession session = request.getSession();
-        // 2.获取session中的用户
-        Object user = session.getAttribute("user");
-        // 3.判断用户是否存在
-        if(user == null) {
-            // 4.不存在，拦截，设置状态码401
-            response.setStatus(401);
-            return false;
-        }
-        // 5.存在，保存用户信息到ThreadLocal
-        UserHolder.saveUser((UserDTO) user);
-        // 6.放行
-        return true;
-    }*/
-
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 1.获取请求头中的token
-        String token = request.getHeader("authorization");
-        if(StrUtil.isBlank(token)){
-            // token不存在，拦截
+        // 1.判断是否需要拦截(ThreadLocal中是否有用户)
+        if(UserHolder.getUser() == null){
+            // 没有，需要拦截
             response.setStatus(401);
             return false;
         }
-        // 2.基于token获取redis中的用户
-        String tokenKey = LOGIN_USER_KEY + token;
-        Map<Object, Object> userMap = stringRedisTemplate.opsForHash()
-                .entries(tokenKey);
-        // 3.判断用户是否存在
-        if(userMap.isEmpty()){
-            // 不存在，拦截
-            response.setStatus(401);
-            return false;
-        }
-        // 4.将查询到的Hash数据转为UserDTO对象
-        UserDTO userDTO = BeanUtil.fillBeanWithMap(userMap, new UserDTO(), false);
-        // 5.保存用户信息到ThreadLocal
-        UserHolder.saveUser(userDTO);
-        // 6.刷新token有效期
-        stringRedisTemplate.expire(tokenKey, CACHE_SHOP_TTL, TimeUnit.MINUTES);
-        // 7.放行
+
         return true;
     }
 
