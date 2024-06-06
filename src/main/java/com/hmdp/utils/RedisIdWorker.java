@@ -40,7 +40,4 @@ public class RedisIdWorker {
         // 3.拼接并返回
         return timestamp << COUNT_BITS|count;
     }
-
-
-
 }
