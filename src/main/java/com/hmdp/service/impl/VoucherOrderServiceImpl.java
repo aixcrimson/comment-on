@@ -14,12 +14,15 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 
 /**
  * <p>
@@ -41,13 +44,48 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private RedissonClient redissonClient;
 
+    private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
+
+    static {
+        SECKILL_SCRIPT = new DefaultRedisScript<>();
+        SECKILL_SCRIPT.setLocation(new ClassPathResource("seckill.lua"));
+        SECKILL_SCRIPT.setResultType(Long.class);
+    }
+    /**
+     * 优惠券秒杀下单优化
+     *
+     * @param voucherId
+     * @return
+     */
+    @Override
+    public Result sekillVocher(Long voucherId) {
+        // 获取用户id
+        Long userId = UserHolder.getUser().getId();
+        long orderId = redisIdWorker.nextId("order");
+        // 1.执行lua脚本
+        Long result = stringRedisTemplate.execute(
+                SECKILL_SCRIPT,
+                Collections.emptyList(),
+                voucherId.toString(), userId.toString(), String.valueOf(orderId)
+        );
+        int r = result.intValue();
+        // 2.判断结果是否为0
+        if (r != 0) {
+            // 2.1.不为0，代表库存不足或者重复下单
+            return Result.fail(r == 1 ? "库存不足" : "不能重复下单");
+        }
+        // TODO 保存阻塞队列
+        // 3.返回订单id
+        return Result.ok(orderId);
+    }
+
     /**
      * 优惠券秒杀下单
      *
      * @param voucherId
      * @return
      */
-    @Override
+    /*@Override
     public Result sekillVocher(Long voucherId) {
         // 1.查询优惠券信息
         SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
@@ -85,7 +123,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             // 释放锁
             lock.unlock();
         }
-    }
+    }*/
+
 
     /**
      * 封装方法实现一人一单
